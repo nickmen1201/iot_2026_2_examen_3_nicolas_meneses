@@ -12,6 +12,42 @@ graded deliverable: an ETL process over the spectrum measurement set that produc
 quality assessment, channel contamination indicators, the evidence backing a written technical
 report for the Agencia Nacional del Espectro (ANE), and an interactive web dashboard.
 
+## Clarifications
+
+### Session 2026-09-26
+
+- Q: Is a channel contaminated when its Parseval mean power exceeds -60 dBm, or when any single
+  bin does? → A: Parseval mean power per channel. The brief defines channel power via Parseval
+  in the line that follows the threshold. The any-bin reading marks 44 (A), 44 (B), 61 (C), and
+  42 (D) of 61 captures contaminated. Because captures are max-hold over 100 FFTs, one spurious
+  peak would flip a whole channel, so the any-bin reading is rejected.
+- Q: Is channel contamination computed per capture and then aggregated, or pooled across all
+  captures at once? → A: Parseval power per capture per channel first, which feeds the heat
+  maps, then aggregated. The headline indicator is the linear-power mean of the per-capture
+  channel powers, converted back to dBm. Supporting figures are the percentage of captures whose
+  channel power exceeds -60 dBm (occupancy rate, ITU-R SM.1880 style) and the median per-capture
+  power as a robustness check against outliers.
+- Q: Does this feature generate the written report document, or only the evidence artifacts?
+  → A: The pipeline generates the report document in Spanish (Markdown/HTML), with every figure,
+  table, and number inserted automatically from artifacts. The analyst writes the interpretive
+  narrative and the recommendation inside that generated document.
+- Q: To which signal and domain does the Nyquist check apply? → A: Temporal sampling of the RF
+  signal by the receiver. The acquisition script shows complex IQ sampling at f_s = 20 MS/s
+  centred at 850 MHz, so the baseband f_max = 10 MHz (half of 840-860 MHz). f_s = 2·f_max, so
+  the criterion is met exactly at the limit. The implication to report: the band edges (the
+  lower end of channel A and the upper end of channel D) sit on the anti-aliasing filter
+  roll-off and may be attenuated or aliased. Spectral resolution is 20 MHz / 1024 ≈ 19.5 kHz
+  per bin.
+- Q: Along which axis is interpolation performed, and what is the largest gap that may be
+  imputed? → A: Both axes, with separate limits. Telemetry is interpolated linearly along the
+  route between neighbouring captures, with a maximum gap of 1 capture. `008` has all position
+  fields zero and gets an imputed position from `007` and `009`, flagged as imputed with about
+  600 m of uncertainty. Spectrum is interpolated linearly across adjacent bins, with a maximum
+  gap of 2 consecutive bins (≈39 kHz). A wider gap discards the capture, since wider
+  interpolation could erase a narrowband carrier. `017` (distance error 17.3) is not imputed.
+  Its coordinates are consistent with its neighbours, so it is kept and flagged as a
+  low-confidence position.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Trustworthy measurement set with a quality verdict (Priority: P1)
@@ -34,12 +70,16 @@ count of corrections and imputations. No indicator or map is needed for this to 
 
 1. **Given** the 61 raw captures, **When** the ingest and quality process runs, **Then** the
    quality report lists every capture with exactly one disposition and a stated reason.
-2. **Given** a capture whose position fields are all zero (as in `008.txt`), **When** quality
-   assessment runs, **Then** it is flagged as a positioning failure and excluded from
-   position-dependent outputs, while remaining listed in the report with its cause.
+2. **Given** a capture whose position fields are all zero (as in `008.txt`) and whose
+   neighbouring captures both have valid positions, **When** quality assessment runs, **Then**
+   it is flagged as a positioning failure, its position is imputed by linear interpolation
+   between its neighbours, and it is listed with disposition imputed, the technique, and the
+   positional uncertainty. When a neighbour is also invalid, the capture is excluded from
+   position-dependent outputs instead.
 3. **Given** a capture whose reported distance error is far outside the population baseline
    (as in `017.txt` at 17.3 against a 0.7-1.4 baseline), **When** quality assessment runs,
-   **Then** it is flagged as a low-confidence position with the bound that triggered the flag.
+   **Then** it is flagged as a low-confidence position with the bound that triggered the flag,
+   and it is kept, not imputed, when its coordinates are consistent with its neighbours.
 4. **Given** any value is corrected or imputed, **When** the report is produced, **Then** the
    technique, the count of affected values, and the justification are stated.
 5. **Given** the process is run twice without changing inputs, **When** outputs are compared,
@@ -103,7 +143,8 @@ indicator logic in the dashboard itself.
 2. **Given** any view is displayed, **When** the reviewer inspects it, **Then** its units and
    colour scale are stated on the view.
 3. **Given** captures excluded for positioning failure, **When** spatial views render, **Then**
-   those captures are absent from the map rather than plotted at a default location.
+   those captures are absent from the map rather than plotted at a default location, and
+   captures with an imputed position are visually distinguished from measured positions.
 4. **Given** the curated artifacts change, **When** the dashboard is reloaded, **Then** the
    views reflect the new values without any dashboard code change.
 
@@ -137,14 +178,13 @@ that the temperature assessment states both a computed statistic and its limitat
 
 ---
 
-### User Story 5 - Contamination source location estimate (Priority: P5, optional)
+### User Story 5 - Contamination source location estimate (Priority: P5)
 
 For the study's bonus objective, the analyst estimates where each band's interference originates
 by extrapolating from signal strength across the measured positions, and places those estimates
 on the map.
 
-**Why this priority**: Explicitly optional in the study brief, and the constitution permits it
-only once the three quality gates pass. It must never delay Stories 1-4.
+**Why this priority**: The constitution permits it only once the three quality gates pass. It must never delay Stories 1-4.
 
 **Independent Test**: With all gates passing, confirm each band yields a source estimate placed
 on the map and labelled as an estimate with its method and uncertainty.
@@ -160,7 +200,10 @@ on the map and labelled as an estimate with its method and uncertainty.
 
 ### Edge Cases
 
-- A capture reports all position fields as zero (present: `008.txt`) — positioning failure.
+- A capture reports all position fields as zero (present: `008.txt`) — positioning failure,
+  whose position is imputed from its two neighbours because the gap is a single capture.
+- A run of more than 2 consecutive invalid spectral bins in one capture — the capture is
+  discarded instead of interpolated.
 - A capture reports a distance error far outside the population baseline (present: `017.txt`).
 - Captures carry no timestamp, so route ordering must rest on a stated, defensible basis.
 - Test captures (`medidaprueba.txt`, `medidaprueba2.txt`) are not part of the 61-capture study
@@ -202,16 +245,14 @@ on the map and labelled as an estimate with its method and uncertainty.
   that channel's bins, converting from dBm to linear power before summation and back to dBm for
   reporting.
 - **FR-011**: System MUST classify channel contamination against the -60 dBm threshold, applied
-  as [NEEDS CLARIFICATION: does a channel count as contaminated when its Parseval mean power
-  exceeds -60 dBm, or when any individual bin within it does? Under the any-bin reading all 61
-  captures are contaminated in all four channels, which makes the brief's most-versus-least
-  question unanswerable; the Parseval-mean reading discriminates cleanly.], and MUST define that
-  threshold in exactly one place.
-- **FR-012**: System MUST aggregate channel occupancy across the measurement set as
-  [NEEDS CLARIFICATION: is a channel's contamination level computed per capture and then
-  aggregated across the route, or pooled across all captures at once? The first yields a
-  per-position distribution suitable for the heat maps; the second yields a single study-wide
-  figure. Both may be needed, but which one is the headline indicator?].
+  to the channel's Parseval mean power: a channel is contaminated when that power exceeds
+  -60 dBm, not when any individual bin does. The threshold MUST be defined in exactly one
+  place.
+- **FR-012**: System MUST compute each channel's Parseval power per capture, then aggregate it
+  across the measurement set. The headline indicator is the linear-power mean of the per-capture
+  channel powers, converted to dBm. Each channel MUST also report the percentage of captures
+  whose channel power exceeds -60 dBm and the median per-capture power. The per-capture values
+  feed the channel heat maps.
 - **FR-013**: System MUST identify the most and least contaminated channel, and the most and
   least contaminated single frequency across the whole system, reporting each with its power.
 - **FR-014**: System MUST report a channel indicator as undetermined when no accepted capture
@@ -228,17 +269,19 @@ on the map and labelled as an estimate with its method and uncertainty.
 - **FR-019**: Dashboard MUST read only curated artifacts and MUST NOT reimplement cleaning,
   imputation, or indicator logic.
 - **FR-020**: Each dashboard view MUST state its units and colour scale.
-- **FR-021**: System MUST omit captures excluded for positioning failure from spatial views
-  rather than plotting them at a default location.
+- **FR-021**: System MUST omit captures whose position could not be imputed from spatial views
+  rather than plotting them at a default location. Captures with an imputed position MUST be
+  shown and visually distinguished from measured positions.
 - **FR-022**: System MUST state the basis on which the station route is ordered, given the
   absence of a timestamp field.
 - **FR-023**: System MUST assess whether sensor temperature relates to measurement quality,
   reporting the statistic computed, its limitation, and the confound that temperature rises
   monotonically across the capture sequence.
 - **FR-024**: System MUST produce, for the written report, the evidence artifacts backing each
-  claim, such that every report claim cites a specific artifact. The written narrative itself is
-  [NEEDS CLARIFICATION: does this feature generate the report document, or produce the evidence
-  artifacts the analyst writes the narrative around? This changes scope substantially.].
+  claim, such that every report claim cites a specific artifact. System MUST generate the report
+  document in Spanish (Markdown/HTML) with every figure, table, and number inserted
+  automatically from artifacts. The analyst writes the interpretive narrative and the
+  recommendation inside that generated document.
 - **FR-025**: System MUST state which bands it recommends for use and which to avoid, derivable
   from the computed indicators alone.
 - **FR-026**: System MUST express report content and every dashboard label in Spanish, matching
@@ -249,17 +292,18 @@ on the map and labelled as an estimate with its method and uncertainty.
   (f_s ≥ 2·f_max) and report the outcome explicitly as met or not met. The verdict MUST appear
   prominently in the written report together with its implications for the reliability of the
   results. A failed check MUST NOT halt processing: the analysis continues and the report
-  highlights the violation. The signal and domain to which f_s and f_max refer is
-  [NEEDS CLARIFICATION: spatial sampling along the station route, spectral sampling across the
-  1024 bins, or temporal sampling? Each implies a different f_s, a different f_max, and a
-  different meaning for the verdict.].
+  highlights the violation. The check applies to temporal sampling of the RF signal: complex IQ
+  at f_s = 20 MS/s centred at 850 MHz, so f_max = 10 MHz in baseband. The report MUST state that
+  the criterion is met exactly at the limit (f_s = 2·f_max). It MUST also state that the band
+  edges (lower end of channel A, upper end of channel D) sit on the anti-aliasing filter
+  roll-off, so those channels' edge bins may be attenuated or aliased.
 - **FR-029**: System MUST impute missing or invalid values by interpolation only. Statistical
   imputation (mean, median, mode, or model-based estimation) is out of scope and MUST NOT be
-  used. The interpolation axis and the largest gap that may be imputed are
-  [NEEDS CLARIFICATION: is interpolation performed across adjacent frequency bins within a
-  capture, along the route between neighbouring captures, or both? And what is the maximum
-  number of consecutive missing values that may be imputed before the affected span or capture
-  is discarded instead?].
+  used. Telemetry MUST be interpolated linearly along the route between neighbouring captures,
+  with a maximum gap of 1 consecutive capture. Spectral values MUST be interpolated linearly
+  across adjacent bins within a capture, with a maximum gap of 2 consecutive bins (≈39 kHz).
+  A larger gap discards the capture (spectrum) or excludes it from position-dependent outputs
+  (telemetry). Each imputed position MUST carry its positional uncertainty.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -274,8 +318,9 @@ on the map and labelled as an estimate with its method and uncertainty.
   its reason, and the technique and affected-value count where a change was made.
 - **Channel**: One of four named 5 MHz blocks (A, B, C, D) partitioning the band, defined by its
   frequency range and the spectral bins falling in it.
-- **Channel Occupancy Indicator**: A channel's mean occupancy power in dBm with its
-  contaminated-or-clear classification, or an undetermined marker.
+- **Channel Occupancy Indicator**: A channel's headline mean occupancy power in dBm (linear mean
+  of per-capture Parseval powers) with its contaminated-or-clear classification, its percentage
+  of captures above -60 dBm, and its median per-capture power, or an undetermined marker.
 - **Station Route**: The ordered sequence of accepted measurement positions describing the
   mobile station's path, with its ordering basis recorded.
 - **Band Recommendation**: A use-or-avoid judgement per channel, traced to the indicators
@@ -332,4 +377,8 @@ on the map and labelled as an estimate with its method and uncertainty.
   driver; clarity of the views is.
 - Excluding a capture from position-dependent outputs does not exclude its spectral data from
   channel indicators, provided the spectrum itself passed quality assessment.
-- The study is delivered by 2026-09-28, which bounds the scope of optional work.
+- The study brief sets delivery on 2026-09-26, which bounds the scope of optional work.
+- Spectral values are uncalibrated relative levels: the acquisition computed
+  `20·log10(|FFT|/N)` as a max-hold over 100 FFTs. They are treated as dBm per the brief, but the
+  report MUST state this as a limitation, because max-hold biases Parseval means upward and the
+  -60 dBm threshold assumes calibrated power.

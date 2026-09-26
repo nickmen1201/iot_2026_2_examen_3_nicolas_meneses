@@ -245,6 +245,21 @@ on the map and labelled as an estimate with its method and uncertainty.
   the audience of the deliverable.
 - **FR-027**: Optional source-location estimates, if produced, MUST be labelled as estimates with
   their method and uncertainty, and MUST NOT be attempted before the three quality gates pass.
+- **FR-028**: System MUST verify whether the measurements satisfy the Nyquist sampling criterion
+  (f_s ≥ 2·f_max) and report the outcome explicitly as met or not met. The verdict MUST appear
+  prominently in the written report together with its implications for the reliability of the
+  results. A failed check MUST NOT halt processing: the analysis continues and the report
+  highlights the violation. The signal and domain to which f_s and f_max refer is
+  [NEEDS CLARIFICATION: spatial sampling along the station route, spectral sampling across the
+  1024 bins, or temporal sampling? Each implies a different f_s, a different f_max, and a
+  different meaning for the verdict.].
+- **FR-029**: System MUST impute missing or invalid values by interpolation only. Statistical
+  imputation (mean, median, mode, or model-based estimation) is out of scope and MUST NOT be
+  used. The interpolation axis and the largest gap that may be imputed are
+  [NEEDS CLARIFICATION: is interpolation performed across adjacent frequency bins within a
+  capture, along the route between neighbouring captures, or both? And what is the maximum
+  number of consecutive missing values that may be imputed before the affected span or capture
+  is discarded instead?].
 
 ### Key Entities *(include if feature involves data)*
 
@@ -287,9 +302,15 @@ on the map and labelled as an estimate with its method and uncertainty.
   using only the declared dependencies and documented instructions.
 - **SC-009**: The band recommendation names every channel as recommended or not, with each
   judgement traceable to an indicator value.
+- **SC-010**: The written report contains a dedicated Nyquist section stating an explicit met or
+  not-met verdict and its implications for the reliability of the results.
+- **SC-011**: The report states the number of imputed values, the interpolation method used, and
+  the reason for each imputation.
 
 ## Assumptions
 
+- Cloud deployment runs on a university-provided AWS account with a credit cap; the solution
+  must be the simplest and cheapest possible.
 - The 61 numbered captures constitute the study set; `medidaprueba.txt` and `medidaprueba2.txt`
   are acquisition tests and are excluded.
 - Captures carry no timestamp, so the route is ordered by capture sequence as implied by file

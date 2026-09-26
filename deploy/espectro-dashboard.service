@@ -1,0 +1,15 @@
+[Unit]
+Description=Dashboard ocupación espectro 840-860 MHz
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/iot
+Environment=ESPECTRO_URL_REPORTE=http://espectro-sitio-nmeneses-2026.s3-website-us-east-1.amazonaws.com
+ExecStart=/home/ubuntu/iot/.venv/bin/streamlit run dashboard/app.py --server.port 8050 --server.address 0.0.0.0 --server.headless true
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

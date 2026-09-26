@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe técnico — Ocupación del espectro 840-860 MHz en Medellín</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 980px; margin: 0 auto;
+         padding: 16px; color: #222; line-height: 1.5; background: #fff; }
+  h1 { font-size: 1.6em; } h2 { border-bottom: 2px solid #ddd; padding-bottom: 4px; margin-top: 2em; }
+  .tabla { border-collapse: collapse; width: 100%; font-size: 0.85em; margin: 8px 0; }
+  .tabla th, .tabla td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
+  .tabla th { background: #f2f2f2; }
+  .scroll { overflow-x: auto; }
+  .fuente { font-size: 0.8em; color: #666; margin-top: 2px; }
+  .fuente code { background: #f4f4f4; padding: 0 3px; }
+  .destacado { border: 2px solid #1f77b4; background: #eef5fb; padding: 10px 14px; border-radius: 6px; }
+  .alerta { border-color: #d62728; background: #fdeeee; }
+  .pendiente { border: 2px dashed #ff7f0e; background: #fff6ec; padding: 8px 12px; border-radius: 6px; }
+  img { max-width: 100%; height: auto; }
+  .decision { font-size: 1.05em; }
+</style>
+</head>
+<body>
+
+<h1>Ocupación del espectro 840-860 MHz en Medellín</h1>
+<p>Informe técnico para la Agencia Nacional del Espectro (ANE). Todas las cifras, tablas y figuras se
+insertan automáticamente desde los artefactos del pipeline; cada bloque cita su fuente.</p>
+
+<h2>1. Resumen y decisión</h2>
+<div class="destacado decision">
+  {% if peor %}
+  <p>Canal <b>más contaminado: {{ peor.canal }}</b> ({{ "%.1f"|format(peor.potencia_media_dbm) }} dBm).
+     Canal <b>menos contaminado: {{ mejor.canal }}</b> ({{ "%.1f"|format(mejor.potencia_media_dbm) }} dBm).
+     Umbral de contaminación: {{ "%.0f"|format(umbral) }} dBm.</p>
+  <p>Recomendación (regla relativa): <b>usar {{ usar|join(", ") }}</b>; <b>evitar {{ evitar|join(", ") }}</b>.</p>
+  {% else %}
+  <p>No hay capturas con espectro utilizable: los indicadores quedan indeterminados.</p>
+  {% endif %}
+  <p>Nyquist: <b>{{ "cumple" if nyquist.veredicto == "cumple" else "NO cumple" }}{{ " (exactamente en el límite)" if nyquist.en_el_limite else "" }}</b>.</p>
+</div>
+<p class="fuente">Fuente: <code>{{ fuente.indicadores }}</code>, <code>{{ fuente.recomendacion }}</code>, <code>{{ fuente.nyquist }}</code></p>
+
+<h2>2. Datos y calidad</h2>
+<p>Se recibieron {{ n_estudio }} capturas de estudio y {{ resumen.capturas_prueba_excluidas|length }} capturas de
+prueba de adquisición ({{ resumen.capturas_prueba_excluidas|join(", ") }}), que se excluyen del estudio.
+Disposición de las capturas:
+{% for k, v in resumen.n_por_disposicion.items() %}{{ k }}: <b>{{ v }}</b>{{ ", " if not loop.last else "." }}{% endfor %}</p>
+<p>Valores corregidos: <b>{{ resumen.total_corregidos }}</b>. Valores imputados: <b>{{ resumen.total_imputados }}</b>.
+Solo se usa interpolación lineal; nunca media, mediana ni relleno con cero.</p>
+<div class="scroll"><table class="tabla">
+  <tr><th>Campo</th><th>Técnica</th><th>Valores</th><th>Capturas</th><th>Justificación</th></tr>
+  {% for d in resumen.detalle %}
+  <tr><td>{{ d.campo }}</td><td>{{ d.tecnica }}</td><td>{{ d.n_valores }}</td>
+      <td>{{ d.capturas|join(", ") or "—" }}</td><td>{{ d.justificacion }}</td></tr>
+  {% endfor %}
+</table></div>
+<p class="fuente">Fuente: <code>{{ fuente.resumen }}</code></p>
+<p>Capturas no aceptadas tal cual (las demás cumplen todas las reglas):</p>
+<div class="scroll">{{ tabla_disposiciones|safe }}</div>
+<p class="fuente">Fuente: <code>{{ fuente.reporte_calidad }}</code></p>
+<p>Hallazgos de calidad (advertencias y críticos):</p>
+<div class="scroll">{{ tabla_hallazgos|safe }}</div>
+<p class="fuente">Fuente: <code>{{ fuente.hallazgos }}</code></p>
+
+<h2>3. Verificación del criterio de Nyquist</h2>
+<div class="destacado {{ '' if nyquist.veredicto == 'cumple' and not nyquist.en_el_limite else 'alerta' }}">
+  <p><b>Veredicto: {{ "CUMPLE" if nyquist.veredicto == "cumple" else "NO CUMPLE" }}{{ " — exactamente en el límite" if nyquist.en_el_limite else "" }}.</b></p>
+  <p>Muestreo IQ complejo a f<sub>s</sub> = {{ "%.0f"|format(nyquist.fs_hz / 1e6) }} MS/s centrado en 850 MHz;
+     f<sub>max</sub> en banda base = {{ "%.0f"|format(nyquist.f_max_hz / 1e6) }} MHz, así que 2·f<sub>max</sub> =
+     {{ "%.0f"|format(nyquist.fs_minima_hz / 1e6) }} MS/s. Resolución espectral: {{ "%.2f"|format(nyquist.resolucion_khz) }} kHz por bin.</p>
+  <p>{{ nyquist.implicaciones }}</p>
+</div>
+<p class="fuente">Fuente: <code>{{ fuente.nyquist }}</code></p>
+
+<h2>4. Indicadores de ocupación por canal</h2>
+<p>La potencia de cada canal en cada captura es la suma de Parseval de la potencia lineal de sus 256 bins; el
+indicador principal es la media lineal de esas potencias sobre las capturas con espectro utilizable, expresada en
+dBm. La mediana y el porcentaje de capturas sobre el umbral se incluyen como verificación de robustez.</p>
+<div class="scroll">{{ tabla_indicadores|safe }}</div>
+<p class="fuente">Fuente: <code>{{ fuente.indicadores }}</code> (por captura: <code>{{ fuente.pcc }}</code>)</p>
+<img src="{{ fig.potencia_canales }}" alt="Potencia media por canal frente al umbral">
+<p class="fuente">Fuente: <code>{{ fuente.fig_potencia_canales }}</code></p>
+
+<h2>5. Frecuencias más y menos contaminadas</h2>
+<p>Frecuencia más contaminada: <b>{{ "%.3f"|format(extremas.mas_contaminada.frecuencia_mhz) }} MHz</b>
+({{ "%.1f"|format(extremas.mas_contaminada.potencia_dbm) }} dBm, bin {{ extremas.mas_contaminada.bin }}).
+Frecuencia menos contaminada: <b>{{ "%.3f"|format(extremas.menos_contaminada.frecuencia_mhz) }} MHz</b>
+({{ "%.1f"|format(extremas.menos_contaminada.potencia_dbm) }} dBm, bin {{ extremas.menos_contaminada.bin }}).</p>
+<p class="fuente">Fuente: <code>{{ fuente.extremas }}</code></p>
+<img src="{{ fig.espectro_medio }}" alt="Espectro medio 840-860 MHz">
+<p class="fuente">Fuente: <code>{{ fuente.fig_espectro_medio }}</code> (datos: <code>{{ fuente.ppf }}</code>)</p>
+<img src="{{ fig.frecuencias_extremas }}" alt="Potencia por captura en las frecuencias extremas">
+<p class="fuente">Fuente: <code>{{ fuente.fig_frecuencias_extremas }}</code></p>
+
+<h2>6. Sensibilidad a los espectros descartados por saturación</h2>
+<p>Los espectros descartados por posible saturación del receptor se reincorporan solo para medir su efecto sobre
+los indicadores:</p>
+<div class="scroll">{{ tabla_sensibilidad|safe }}</div>
+<p>{% set cambia = sensibilidad|selectattr("cambia_estado")|list %}
+{% if cambia %}Al reincorporarlos cambia el estado de: {{ cambia|map(attribute="canal")|join(", ") }}.
+{% else %}Reincorporarlos no cambia el estado de ningún canal{% if not (sensibilidad|selectattr("cambia_rango")|list) %} ni el orden de contaminación{% endif %}; sí eleva las potencias medias, lo que justifica descartarlos.{% endif %}</p>
+<p class="fuente">Fuente: <code>{{ fuente.sensibilidad }}</code></p>
+
+<h2>7. Ruta de la estación móvil</h2>
+<p>Orden de la ruta: {{ ruta.base_ordenamiento }}. La ruta va de la captura {{ ruta.inicio.id_captura }}
+({{ "%.5f"|format(ruta.inicio.latitud) }}, {{ "%.5f"|format(ruta.inicio.longitud) }}) a la captura
+{{ ruta.fin.id_captura }} ({{ "%.5f"|format(ruta.fin.latitud) }}, {{ "%.5f"|format(ruta.fin.longitud) }}),
+con una longitud aproximada de <b>{{ "%.1f"|format(ruta.longitud_km) }} km</b> entre {{ ruta.n_puntos }} posiciones
+({{ ruta.n_imputados }} imputada(s), {{ ruta.n_excluidos }} excluida(s), {{ ruta.pares_estacionarios }} par(es)
+estacionario(s)). Altitud entre {{ "%.0f"|format(ruta.altitud_min_m) }} y {{ "%.0f"|format(ruta.altitud_max_m) }} m.
+Mapa: <a href="mapas/ruta.html">ruta de la estación</a>.</p>
+<p class="fuente">Fuente: <code>{{ fuente.ruta }}</code></p>
+{% if narrativa.ruta.pendiente %}<div class="pendiente">PENDIENTE: redactar la descripción de la ruta (zonas recorridas).</div>
+{% else %}{{ narrativa.ruta.html|safe }}{% endif %}
+
+<h2>8. Temperatura del sensor y calidad de la medición</h2>
+<p>Variable de calidad: {{ temp.variable_calidad }}. n = {{ temp.n }} capturas con espectro utilizable
+(excluidas: {{ temp.capturas_excluidas|join(", ") or "ninguna" }}).</p>
+<div class="scroll"><table class="tabla">
+  <tr><th>Estadístico</th><th>ρ</th><th>p</th></tr>
+  <tr><td>Spearman temperatura – piso de ruido</td><td>{{ "%.3f"|format(temp.rho_spearman) }}</td><td>{{ "%.3f"|format(temp.p_spearman) }}</td></tr>
+  <tr><td>Spearman temperatura – orden de captura (confusor)</td><td>{{ "%.3f"|format(temp.rho_temp_orden) }}</td><td>{{ "< 0.001" if temp.p_temp_orden < 0.001 else "%.3f"|format(temp.p_temp_orden) }}</td></tr>
+  <tr><td>Spearman piso de ruido – orden de captura</td><td>{{ "%.3f"|format(temp.rho_piso_orden) }}</td><td>—</td></tr>
+  <tr><td><b>Spearman parcial temperatura – piso, controlando el orden</b></td><td><b>{{ "%.3f"|format(temp.rho_parcial_orden) }}</b></td><td><b>{{ "%.3f"|format(temp.p_parcial) }}</b></td></tr>
+</table></div>
+<p>Conclusión estadística (α = {{ temp.nivel_significancia }}): <b>{{ temp.conclusion }}</b>.</p>
+<p><i>Limitación:</i> {{ temp.limitacion }}</p>
+<p class="fuente">Fuente: <code>{{ fuente.temperatura }}</code> (datos: <code>{{ fuente.telemetria }}</code>)</p>
+<img src="{{ fig.temperatura_piso_ruido }}" alt="Temperatura y piso de ruido frente al orden de captura">
+<p class="fuente">Fuente: <code>{{ fuente.fig_temperatura_piso_ruido }}</code></p>
+{% if narrativa.temperatura.pendiente %}<div class="pendiente">PENDIENTE: redactar la interpretación de temperatura y calidad.</div>
+{% else %}{{ narrativa.temperatura.html|safe }}{% endif %}
+
+<h2>9. Recomendación de bandas</h2>
+<p>Regla relativa: los canales se ordenan por potencia media; los dos menos contaminados se recomiendan y los dos
+más contaminados se evitan, aunque los cuatro superen el umbral. El estado absoluto se muestra al lado.</p>
+<div class="scroll">{{ tabla_recomendacion|safe }}</div>
+<p class="fuente">Fuente: <code>{{ fuente.recomendacion }}</code></p>
+{% if narrativa.recomendacion.pendiente %}<div class="pendiente">PENDIENTE: redactar la recomendación para la ANE.</div>
+{% else %}{{ narrativa.recomendacion.html|safe }}{% endif %}
+
+<h2>10. Limitaciones</h2>
+<ul>
+  <li>Los niveles espectrales no están calibrados: la adquisición calculó 20·log10(|FFT|/N) como máximo retenido
+      (max-hold) de 100 FFT. Se tratan como dBm según el enunciado, pero el max-hold sesga hacia arriba las medias
+      de Parseval y el umbral de {{ "%.0f"|format(umbral) }} dBm supone potencia calibrada.</li>
+  <li>El criterio de Nyquist se cumple exactamente en el límite: los bordes de los canales A y D son menos
+      confiables (ver sección 3).</li>
+  <li>Las capturas no tienen marca de tiempo: el orden de la ruta es el número de archivo.</li>
+  <li>La media lineal está dominada por las capturas más fuertes; por eso se reportan también la mediana y el
+      porcentaje de capturas sobre el umbral.</li>
+</ul>
+<p class="fuente">Fuente: <code>{{ fuente.nyquist }}</code>, <code>{{ fuente.indicadores }}</code></p>
+
+<h2>11. Mapas interactivos</h2>
+<ul>
+{% for titulo, archivo in mapas %}  <li><a href="mapas/{{ archivo }}">{{ titulo }}</a></li>
+{% endfor %}</ul>
+<p class="fuente">Fuente: <code>artefactos/sitio/mapas/</code> (generados desde <code>{{ fuente.pcc }}</code> y <code>{{ fuente.telemetria }}</code>)</p>
+
+{% if tabla_fuentes %}
+<h2>12. Estimación de la ubicación de las fuentes de contaminación</h2>
+<p><b>Estimación</b> (no una medición): centroide de las posiciones ponderado por la potencia lineal del canal,
+usando las capturas del cuartil superior. La incertidumbre es la distancia estándar ponderada. Si la geometría de la
+ruta no permite ubicar una fuente, el canal se marca como <i>no_soportado</i>.
+Mapa: <a href="mapas/fuentes.html">estimación de fuentes</a>.</p>
+<div class="scroll">{{ tabla_fuentes|safe }}</div>
+<p class="fuente">Fuente: <code>{{ fuente.fuentes }}</code></p>
+{% endif %}
+
+<h2>{{ "13" if tabla_fuentes else "12" }}. Conclusiones</h2>
+{% if narrativa.conclusiones.pendiente %}<div class="pendiente">PENDIENTE: redactar las conclusiones.</div>
+{% else %}{{ narrativa.conclusiones.html|safe }}{% endif %}
+
+</body>
+</html>

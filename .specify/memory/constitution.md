@@ -1,5 +1,13 @@
 <!--
 SYNC IMPACT REPORT
+Version change: 1.0.0 -> 1.1.0 (2026-09-26)
+Bump rationale: MINOR. The source-location extrapolation (the brief's bonus) changes from
+  optional (MAY) to mandatory (MUST), still scheduled last and gated on the three quality
+  gates. No principle was removed or redefined.
+Modified sections:
+  - Development Workflow & Quality Gates: bonus clause.
+
+Previous report:
 Version change: (unratified template) -> 1.0.0
 Bump rationale: Initial ratification. The prior file was an unfilled scaffold with no
   defined governance, so this is the first enforceable version (MAJOR baseline).
@@ -141,9 +149,9 @@ Three gates MUST pass before the work is considered deliverable:
 
 Failures MUST be fixed at their root cause. Suppressing a warning, widening a plausibility
 bound to make data pass, or hard-coding a result to make a view render are violations.
-Optional extrapolation work, such as estimating the geographic source of contamination per
-band, MAY be added only after all three gates pass, and MUST be labelled as an estimate with
-its method and uncertainty stated.
+The extrapolation work that estimates the geographic source of contamination per band is part
+of the deliverable and MUST be done. It is built last and runs only after all three gates pass,
+and each estimate MUST be labelled as an estimate with its method and uncertainty stated.
 
 ## Governance
 
@@ -164,4 +172,4 @@ carry the gates into the task list, and `/speckit-implement` MUST NOT mark work 
 a gate is failing. Complexity MUST be justified against Principle II and Principle V; if a
 simpler pipeline satisfies the deliverable, the simpler pipeline is required.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-25 | **Last Amended**: 2026-09-25
+**Version**: 1.1.0 | **Ratified**: 2026-09-25 | **Last Amended**: 2026-09-26

@@ -58,3 +58,33 @@ contaminated in all four channels. That is incorrect. The actual counts are 44 (
 61 (C), and 42 (D) of 61. The Parseval-mean reading was still chosen, because the brief ties
 the threshold to Parseval mean power, and because max-hold spikes make the any-bin reading
 unreliable.
+
+### Validation iteration 3 — 2026-09-26
+
+A coverage review against `Examen_03_2026_20.md` found gaps that were resolved in the same
+session:
+
+- Added FR-030 (saturation rule for `016`) and FR-031 (cloud-hosted, remotely reachable
+  dashboard for competencies 2 and 3).
+- FR-023 now defines the temperature-quality metric.
+- FR-013 now requires the plot of the most and least contaminated frequency.
+- FR-018 now requires a Medellín basemap and a display of the decision.
+- FR-022 now requires the route description.
+- The incorrect "temperature rises monotonically" wording was corrected.
+
+Status remains 16/16.
+
+### Validation iteration 4 — 2026-09-26
+
+A cross-artifact review against the brief found two problems, and both were fixed.
+
+1. With the Parseval sum, all four channels exceed -60 dBm, so a rule of "avoid if
+   contaminated" would recommend no channel at all. The recommendation is now relative
+   (FR-025, SC-009), and the channel power definition is fixed as the Parseval sum (FR-010).
+2. The bonus was still optional in several artifacts. It is now mandatory, built last, and
+   runs only after the three gates (constitution 1.1.0, FR-027, and the plan, CLI, dashboard
+   and artifact contracts). It is drawn on its own map, `fuentes.html`.
+
+Minor documentation drift was also fixed: the map and tab counts, SC-005, the AWS CLI
+install, the SSH prefix list, `ESPECTRO_URL_REPORTE`, and the unrequested "dead capture"
+rule. Status remains 16/16.

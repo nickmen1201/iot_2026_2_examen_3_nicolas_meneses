@@ -1,0 +1,11 @@
+# Notas personales de despliegue
+AWS_DESPLIEGUE.md
+
+# Llaves y credenciales (el repo es público)
+*.pem
+.env
+
+# Entorno y artefactos generados
+.venv/
+__pycache__/
+artefactos/

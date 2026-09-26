@@ -47,6 +47,29 @@ report for the Agencia Nacional del Espectro (ANE), and an interactive web dashb
   interpolation could erase a narrowband carrier. `017` (distance error 17.3) is not imputed.
   Its coordinates are consistent with its neighbours, so it is kept and flagged as a
   low-confidence position.
+- Q: How is channel power defined, and how is the recommendation made when every channel exceeds
+  -60 dBm? → A: Channel power is the Parseval sum of the linear bin powers over the channel's
+  256 bins, which is the total in-channel power. The spectrum is normalised by N, so this sum
+  is the signal's mean power in the channel. With this definition, all four headline powers
+  exceed -60 dBm (A -33.9, B -13.5, C -10.7, D -24.8 dBm without `016`). The recommendation is
+  therefore relative. The two least contaminated channels by headline power are recommended for
+  use, and the two most contaminated are to be avoided. Each channel's absolute state
+  (contaminated or clear) is still reported next to its recommendation.
+- Q: What is done with a capture whose whole spectrum is raised, as in `016`? → A: Its spectrum
+  is discarded as suspected receiver saturation, and its telemetry stays usable. The criterion:
+  a capture's noise floor (10th percentile of its 1024 bins) exceeds the study median noise floor
+  by more than 30 dB. `016` sits 35.6 dB above; the next highest (`024`) sits 21.8 dB above, so
+  30 dB falls in a clear natural break. The report states how much the indicators change with
+  and without the discarded spectrum.
+- Q: Which number represents "data quality" when assessing temperature? → A: The per-capture
+  noise floor (10th percentile of spectral power), because thermal noise rises with
+  temperature. The statistic is Spearman correlation between temperature and noise floor, with
+  acquisition order controlled, since temperature and order correlate at ρ ≈ 0.91.
+- Q: Does the brief's "dashboard y aplicación remota" require a separate application? → A: No.
+  The dashboard is served from the cloud, reachable from any device including a phone, and it
+  shows the decision (contaminated or clear per channel, plus the recommendation). That covers
+  "visualice/notifique" without a separate app. The deployment method is decided during
+  planning, not in this spec.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -131,7 +154,7 @@ route, and how the worst frequency is distributed geographically.
 sequenced before the smaller report-evidence slice despite equal grade weight. It consumes
 Story 1 and Story 2 outputs and adds no analysis of its own.
 
-**Independent Test**: Start the server and confirm all six required views render from curated
+**Independent Test**: Start the server and confirm all required maps render from curated
 artifacts, each labelled with its units and colour scale, with no recomputation of cleaning or
 indicator logic in the dashboard itself.
 
@@ -167,7 +190,7 @@ that the temperature assessment states both a computed statistic and its limitat
 
 1. **Given** the curated positions, **When** the route is described, **Then** its ordering basis
    is stated explicitly, since the captures carry no timestamp field.
-2. **Given** sensor temperature rises monotonically across the capture sequence, **When** the
+2. **Given** sensor temperature trends upward across the capture sequence, **When** the
    temperature-versus-quality question is assessed, **Then** the assessment reports a statistic
    and explicitly addresses that temperature is confounded with acquisition order, rather than
    asserting causation from correlation alone.
@@ -208,9 +231,11 @@ on the map and labelled as an estimate with its method and uncertainty.
 - Captures carry no timestamp, so route ordering must rest on a stated, defensible basis.
 - Test captures (`medidaprueba.txt`, `medidaprueba2.txt`) are not part of the 61-capture study
   set and must not silently enter the indicators.
-- A capture's spectrum sits near the noise floor across all bins, indicating a dead capture.
-- A capture's spectrum contains extremely high readings suggesting receiver overload or a
-  near-field emitter, which inflate a channel indicator if accepted uncritically.
+- A capture's spectrum sits near the noise floor across all bins. It is kept, because a low
+  noise floor is a valid quiet reading and is not a defect.
+- A capture's whole spectrum is raised, suggesting receiver saturation (present: `016.txt`,
+  noise floor 35.6 dB above the study median) — its spectrum is discarded per FR-030 so it does
+  not inflate the channel indicators.
 - Non-finite or unparseable values appear in a spectral or telemetry field.
 - A capture does not present the expected field count.
 - Two captures report identical coordinates, so the station was stationary between them.
@@ -242,8 +267,9 @@ on the map and labelled as an estimate with its method and uncertainty.
 - **FR-009**: System MUST define channels A, B, C, and D as the four consecutive 5 MHz blocks of
   the band in ascending frequency order.
 - **FR-010**: System MUST compute each channel's mean occupancy power by Parseval summation over
-  that channel's bins, converting from dBm to linear power before summation and back to dBm for
-  reporting.
+  that channel's bins: the sum of the linear bin powers, which is the total in-channel power.
+  The conversion from dBm to linear power happens before summation, and the result is converted
+  back to dBm for reporting.
 - **FR-011**: System MUST classify channel contamination against the -60 dBm threshold, applied
   to the channel's Parseval mean power: a channel is contaminated when that power exceeds
   -60 dBm, not when any individual bin does. The threshold MUST be defined in exactly one
@@ -255,6 +281,8 @@ on the map and labelled as an estimate with its method and uncertainty.
   feed the channel heat maps.
 - **FR-013**: System MUST identify the most and least contaminated channel, and the most and
   least contaminated single frequency across the whole system, reporting each with its power.
+  A frequency's power is the linear-power mean of that bin across accepted captures, in dBm.
+  System MUST produce a plot of the most and the least contaminated frequency.
 - **FR-014**: System MUST report a channel indicator as undetermined when no accepted capture
   contributes to it.
 - **FR-015**: System MUST persist the curated dataset, the quality report, and the channel
@@ -265,29 +293,40 @@ on the map and labelled as an estimate with its method and uncertainty.
   separately inspectable.
 - **FR-018**: System MUST serve an interactive dashboard over a web server presenting
   measurement locations, the station route, a heat map per channel (A, B, C, D), a sensor
-  temperature heat map, and a most-contaminated-frequency heat map.
+  temperature heat map, and a most-contaminated-frequency heat map, all drawn over a map of
+  Medellín. The dashboard MUST also show the decision: each channel's contaminated-or-clear
+  verdict and the band recommendation.
 - **FR-019**: Dashboard MUST read only curated artifacts and MUST NOT reimplement cleaning,
   imputation, or indicator logic.
 - **FR-020**: Each dashboard view MUST state its units and colour scale.
 - **FR-021**: System MUST omit captures whose position could not be imputed from spatial views
   rather than plotting them at a default location. Captures with an imputed position MUST be
   shown and visually distinguished from measured positions.
-- **FR-022**: System MUST state the basis on which the station route is ordered, given the
+- **FR-022**: System MUST describe the route the station followed (start and end points, total
+  length, and the areas it crossed) and MUST state the basis on which it is ordered, given the
   absence of a timestamp field.
 - **FR-023**: System MUST assess whether sensor temperature relates to measurement quality,
-  reporting the statistic computed, its limitation, and the confound that temperature rises
-  monotonically across the capture sequence.
+  measured as the per-capture noise floor (10th percentile of spectral power). It MUST report
+  the Spearman correlation between temperature and noise floor with acquisition order
+  controlled, the statistic's limitation, and the confound that temperature trends upward with
+  capture order.
 - **FR-024**: System MUST produce, for the written report, the evidence artifacts backing each
   claim, such that every report claim cites a specific artifact. System MUST generate the report
   document in Spanish (Markdown/HTML) with every figure, table, and number inserted
   automatically from artifacts. The analyst writes the interpretive narrative and the
   recommendation inside that generated document.
 - **FR-025**: System MUST state which bands it recommends for use and which to avoid, derivable
-  from the computed indicators alone.
+  from the computed indicators alone. The rule is relative: channels are ranked by headline
+  power. The two least contaminated are recommended for use and the two most contaminated are to
+  be avoided, even when all four exceed -60 dBm. Each channel's absolute contaminated-or-clear
+  state is reported next to its recommendation. A channel with no data is marked as having no
+  data.
 - **FR-026**: System MUST express report content and every dashboard label in Spanish, matching
   the audience of the deliverable.
-- **FR-027**: Optional source-location estimates, if produced, MUST be labelled as estimates with
-  their method and uncertainty, and MUST NOT be attempted before the three quality gates pass.
+- **FR-027**: System MUST produce a source-location estimate for each channel (the brief's bonus)
+  and place it on a map in the dashboard. Estimation is built last and runs only after the
+  three quality gates pass. Each estimate MUST be labelled as an estimate with its method and
+  uncertainty, or marked as unsupported when the geometry cannot constrain a source.
 - **FR-028**: System MUST verify whether the measurements satisfy the Nyquist sampling criterion
   (f_s ≥ 2·f_max) and report the outcome explicitly as met or not met. The verdict MUST appear
   prominently in the written report together with its implications for the reliability of the
@@ -304,6 +343,14 @@ on the map and labelled as an estimate with its method and uncertainty.
   across adjacent bins within a capture, with a maximum gap of 2 consecutive bins (≈39 kHz).
   A larger gap discards the capture (spectrum) or excludes it from position-dependent outputs
   (telemetry). Each imputed position MUST carry its positional uncertainty.
+- **FR-030**: System MUST discard a capture's spectrum as suspected receiver saturation when its
+  noise floor (10th percentile of its 1024 bins) exceeds the study median noise floor by more
+  than 30 dB. Its telemetry remains usable for route and temperature outputs. The report MUST
+  state how much the channel indicators change with and without the discarded spectrum.
+- **FR-031**: The pipeline and the dashboard MUST run on cloud infrastructure, and the
+  dashboard MUST be reachable remotely from any device with a browser, including a phone. This
+  remote dashboard is the "aplicación remota" of the brief. The deployment method is decided
+  during planning.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -323,8 +370,8 @@ on the map and labelled as an estimate with its method and uncertainty.
   of captures above -60 dBm, and its median per-capture power, or an undetermined marker.
 - **Station Route**: The ordered sequence of accepted measurement positions describing the
   mobile station's path, with its ordering basis recorded.
-- **Band Recommendation**: A use-or-avoid judgement per channel, traced to the indicators
-  supporting it.
+- **Band Recommendation**: A use-or-avoid judgement per channel, made by relative ranking of the
+  headline power and traced to the indicators supporting it.
 
 ## Success Criteria *(mandatory)*
 
@@ -338,15 +385,17 @@ on the map and labelled as an estimate with its method and uncertainty.
   data, quality reports, and indicator values.
 - **SC-004**: A reviewer opening the dashboard can identify the most contaminated channel within
   30 seconds without consulting any other document.
-- **SC-005**: All six required dashboard views are present and each states its units and colour
-  scale.
+- **SC-005**: All required dashboard maps are present: locations, route, four channel heat maps,
+  sensor temperature, most contaminated frequency, and source estimates. Each map states its
+  units and colour scale.
 - **SC-006**: 100% of claims in the written report cite a specific supporting artifact.
 - **SC-007**: The temperature-versus-quality question is answered with a computed statistic, a
   stated limitation, and explicit treatment of the acquisition-order confound.
 - **SC-008**: A reviewer can rebuild the full analysis from the raw captures on a clean machine
   using only the declared dependencies and documented instructions.
 - **SC-009**: The band recommendation names every channel as recommended or not, with each
-  judgement traceable to an indicator value.
+  judgement traceable to an indicator value. At least one channel is recommended for use
+  whenever at least one channel has data.
 - **SC-010**: The written report contains a dedicated Nyquist section stating an explicit met or
   not-met verdict and its implications for the reliability of the results.
 - **SC-011**: The report states the number of imputed values, the interpolation method used, and
@@ -354,8 +403,9 @@ on the map and labelled as an estimate with its method and uncertainty.
 
 ## Assumptions
 
-- Cloud deployment runs on a university-provided AWS account with a credit cap; the solution
-  must be the simplest and cheapest possible.
+- Cloud deployment runs on a university-provided AWS Academy Lab account with a credit cap, set
+  up manually by the analyst; the solution must be the simplest and cheapest possible that
+  still covers the full brief, including the bonus.
 - The 61 numbered captures constitute the study set; `medidaprueba.txt` and `medidaprueba2.txt`
   are acquisition tests and are excluded.
 - Captures carry no timestamp, so the route is ordered by capture sequence as implied by file
@@ -376,8 +426,9 @@ on the map and labelled as an estimate with its method and uncertainty.
 - The dashboard serves a small number of concurrent reviewers, so throughput is not a design
   driver; clarity of the views is.
 - Excluding a capture from position-dependent outputs does not exclude its spectral data from
-  channel indicators, provided the spectrum itself passed quality assessment.
-- The study brief sets delivery on 2026-09-26, which bounds the scope of optional work.
+  channel indicators, provided the spectrum itself passed quality assessment. Symmetrically,
+  discarding a capture's spectrum does not discard its valid telemetry.
+- The study brief sets delivery on 2026-09-26. The bonus is in scope and is built last.
 - Spectral values are uncalibrated relative levels: the acquisition computed
   `20·log10(|FFT|/N)` as a max-hold over 100 FFTs. They are treated as dBm per the brief, but the
   report MUST state this as a limitation, because max-hold biases Parseval means upward and the

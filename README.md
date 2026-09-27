@@ -116,13 +116,17 @@ sudo dd if=/dev/zero of=/swapfile bs=1M count=1024
 sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
 
-sudo apt update && sudo apt install -y git python3-venv python3-pip
+sudo apt update && sudo apt install -y git curl
 sudo snap install aws-cli --classic
 git clone https://github.com/nickmen1201/iot_2026_2_examen_3_nicolas_meneses.git ~/iot
 cd ~/iot
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
+
+# Entorno con Python 3.12 gestionado por uv: el Python del sistema puede ser más nuevo y las
+# versiones fijadas en requirements.txt no traen paquetes precompilados para él
+curl -LsSf https://astral.sh/uv/install.sh | sh
+~/.local/bin/uv venv --python 3.12 .venv
+~/.local/bin/uv pip install --python .venv/bin/python -r requirements.txt
+.venv/bin/python -c "import numpy, pandas, scipy, folium, streamlit; print('OK')"
 
 # Pipeline en la nube (modelo de decisión) + carga a S3
 export ESPECTRO_BUCKET_DATALAKE=espectro-datalake-nmeneses-2026

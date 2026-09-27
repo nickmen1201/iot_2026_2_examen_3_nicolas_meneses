@@ -21,7 +21,7 @@ The source-location bonus (US5) is the last task.
 
 ## Technical Context
 
-**Language/Version**: Python 3.12 (the version on the local dev machine and on Ubuntu 24.04)
+**Language/Version**: Python 3.12 (the local dev machine; on the EC2, a CPython 3.12 managed by uv)
 
 **Primary Dependencies**: numpy, pandas, scipy (analysis); matplotlib (figures); folium +
 branca (maps; jinja2 comes with folium and also renders the report); markdown (narrative
@@ -34,7 +34,7 @@ remote copy lives in S3 (a datalake bucket and a static-site bucket). No databas
 determinism check (build twice, hash the artifacts) documented in quickstart.
 
 **Target Platform**: AWS Academy Learner Lab, EC2 t3.micro on Ubuntu Server 24.04 LTS
-(system `python3` 3.12 from apt, AWS CLI from snap), with LabInstanceProfile, an Elastic IP and a systemd unit. Local
+(Python 3.12 managed by `uv`, not the system `python3`; AWS CLI from snap), with LabInstanceProfile, an Elastic IP and a systemd unit. Local
 Windows for development.
 
 **Project Type**: Batch data pipeline (CLI) plus a single-page web dashboard.

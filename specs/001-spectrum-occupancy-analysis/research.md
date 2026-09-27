@@ -166,9 +166,15 @@ records the decisions left open inside that stack, and every NEEDS CLARIFICATION
 ## R12. EC2 runtime
 
 - **Decision**: Ubuntu Server 24.04 LTS on a t3.micro (the distribution the course uses), installing
-  `apt install -y git python3-venv python3-pip` and the AWS CLI with `snap install aws-cli --classic`
-  (Ubuntu does not ship it). A 1 GB swapfile is created before `pip install`, because building the
-  scientific wheels can exceed 1 GB of RAM. A venv lives at `~/iot/.venv`. A systemd unit,
+  `apt install -y git curl` and the AWS CLI with `snap install aws-cli --classic`
+  (Ubuntu does not ship it). The Python environment is built with **uv**:
+  `uv venv --python 3.12 .venv` downloads a managed CPython 3.12 into the user's home, and
+  `uv pip install --python .venv/bin/python -r requirements.txt` installs the pinned versions.
+  The system Python is not used. The instance's `python3` turned out to be newer than 3.12, and
+  numpy 2.1.3 has no precompiled wheel for it, so `pip` fell back to a source build that failed
+  (`metadata-generation-failed`). Pinning the interpreter keeps the EC2 environment identical to the
+  one tested locally (Python 3.12). A 1 GB swapfile is created before the install as a safety
+  margin for the 1 GB of RAM. A venv lives at `~/iot/.venv`. A systemd unit,
   `deploy/espectro-dashboard.service`, runs Streamlit as `ubuntu` with `Restart=always`
   and `WantedBy=multi-user.target`, so the dashboard returns when the Learner Lab restarts the
   instance. The security group allows 22 only from the prefix list `com.amazonaws.us-east-1.ec2-instance-connect`

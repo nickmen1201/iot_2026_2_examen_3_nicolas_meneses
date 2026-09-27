@@ -8,9 +8,9 @@
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 980px; margin: 0 auto;
          padding: 16px; color: #222; line-height: 1.5; background: #fff; }
   h1 { font-size: 1.6em; } h2 { border-bottom: 2px solid #ddd; padding-bottom: 4px; margin-top: 2em; }
-  .tabla { border-collapse: collapse; width: 100%; font-size: 0.85em; margin: 8px 0; }
-  .tabla th, .tabla td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
-  .tabla th { background: #f2f2f2; }
+  .tabla, .narrativa table { border-collapse: collapse; width: 100%; font-size: 0.85em; margin: 8px 0; }
+  .tabla th, .tabla td, .narrativa th, .narrativa td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
+  .tabla th, .narrativa th { background: #f2f2f2; }
   .scroll { overflow-x: auto; }
   .fuente { font-size: 0.8em; color: #666; margin-top: 2px; }
   .fuente code { background: #f4f4f4; padding: 0 3px; }
@@ -112,7 +112,7 @@ estacionario(s)). Altitud entre {{ "%.0f"|format(ruta.altitud_min_m) }} y {{ "%.
 Mapa: <a href="mapas/ruta.html">ruta de la estación</a>.</p>
 <p class="fuente">Fuente: <code>{{ fuente.ruta }}</code></p>
 {% if narrativa.ruta.pendiente %}<div class="pendiente">PENDIENTE: redactar la descripción de la ruta (zonas recorridas).</div>
-{% else %}{{ narrativa.ruta.html|safe }}{% endif %}
+{% else %}<div class="narrativa">{{ narrativa.ruta.html|safe }}</div>{% endif %}
 
 <h2>8. Temperatura del sensor y calidad de la medición</h2>
 <p>Variable de calidad: {{ temp.variable_calidad }}. n = {{ temp.n }} capturas con espectro utilizable
@@ -130,7 +130,7 @@ Mapa: <a href="mapas/ruta.html">ruta de la estación</a>.</p>
 <img src="{{ fig.temperatura_piso_ruido }}" alt="Temperatura y piso de ruido frente al orden de captura">
 <p class="fuente">Fuente: <code>{{ fuente.fig_temperatura_piso_ruido }}</code></p>
 {% if narrativa.temperatura.pendiente %}<div class="pendiente">PENDIENTE: redactar la interpretación de temperatura y calidad.</div>
-{% else %}{{ narrativa.temperatura.html|safe }}{% endif %}
+{% else %}<div class="narrativa">{{ narrativa.temperatura.html|safe }}</div>{% endif %}
 
 <h2>9. Recomendación de bandas</h2>
 <p>Regla relativa: los canales se ordenan por potencia media; los dos menos contaminados se recomiendan y los dos
@@ -138,7 +138,7 @@ más contaminados se evitan, aunque los cuatro superen el umbral. El estado abso
 <div class="scroll">{{ tabla_recomendacion|safe }}</div>
 <p class="fuente">Fuente: <code>{{ fuente.recomendacion }}</code></p>
 {% if narrativa.recomendacion.pendiente %}<div class="pendiente">PENDIENTE: redactar la recomendación para la ANE.</div>
-{% else %}{{ narrativa.recomendacion.html|safe }}{% endif %}
+{% else %}<div class="narrativa">{{ narrativa.recomendacion.html|safe }}</div>{% endif %}
 
 <h2>10. Limitaciones</h2>
 <ul>
@@ -167,11 +167,13 @@ ruta no permite ubicar una fuente, el canal se marca como <i>no_soportado</i>.
 Mapa: <a href="mapas/fuentes.html">estimación de fuentes</a>.</p>
 <div class="scroll">{{ tabla_fuentes|safe }}</div>
 <p class="fuente">Fuente: <code>{{ fuente.fuentes }}</code></p>
+{% if narrativa.fuentes.pendiente %}<div class="pendiente">PENDIENTE: redactar la interpretación de las fuentes estimadas.</div>
+{% else %}<div class="narrativa">{{ narrativa.fuentes.html|safe }}</div>{% endif %}
 {% endif %}
 
 <h2>{{ "13" if tabla_fuentes else "12" }}. Conclusiones</h2>
 {% if narrativa.conclusiones.pendiente %}<div class="pendiente">PENDIENTE: redactar las conclusiones.</div>
-{% else %}{{ narrativa.conclusiones.html|safe }}{% endif %}
+{% else %}<div class="narrativa">{{ narrativa.conclusiones.html|safe }}</div>{% endif %}
 
 </body>
 </html>

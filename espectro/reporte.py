@@ -18,7 +18,7 @@ from espectro import config  # noqa: E402
 from espectro.config import UMBRAL_CONTAMINACION_DBM  # noqa: E402
 from espectro.utilidades import asegurar_dir, leer_csv, leer_json, ruta_relativa  # noqa: E402
 
-SECCIONES_NARRATIVA = ["ruta", "temperatura", "recomendacion", "conclusiones"]
+SECCIONES_NARRATIVA = ["ruta", "temperatura", "recomendacion", "fuentes", "conclusiones"]
 COLOR_ESTADO = {"contaminado": "#d62728", "libre": "#2ca02c", "indeterminado": "#7f7f7f"}
 
 
@@ -193,7 +193,9 @@ def generar_reporte() -> list[str]:
         "tabla_recomendacion": _tabla(rec_tabla),
         "tabla_sensibilidad": _tabla(sens.drop(columns=["capturas_reincorporadas"])),
         "sensibilidad": sens.to_dict("records"),
-        "tabla_fuentes": _tabla(fuentes) if fuentes is not None else None,
+        "tabla_fuentes": _tabla(fuentes.assign(latitud=fuentes["latitud"].map("{:.5f}".format),
+                                               longitud=fuentes["longitud"].map("{:.5f}".format)))
+                         if fuentes is not None else None,
         "narrativa": {n: _narrativa(n) for n in SECCIONES_NARRATIVA},
         "mapas": [("Ubicación de las mediciones", "ubicaciones.html"), ("Ruta de la estación", "ruta.html"),
                   *[(f"Mapa de calor canal {c}", f"canal_{c}.html") for c in config.CANALES],

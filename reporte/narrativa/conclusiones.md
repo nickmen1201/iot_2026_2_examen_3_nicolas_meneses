@@ -14,10 +14,11 @@
 
 3. **Los valores más altos aparecen en el sur de la ruta**, entre Itagüí y Envigado. La captura 024 es
    la más fuerte en los canales A, B y C, y entre 3 y 5 de las 10 capturas más fuertes de cada canal
-   están en el tramo 022-028. Las estimaciones de fuente de los cuatro canales caen en el sur del
-   recorrido, pero son **estimaciones con incertidumbre de 2,2 a 2,7 km**, no ubicaciones medidas.
-   Además, un centroide solo puede caer dentro de la zona recorrida, así que una fuente fuera de la
-   ruta no se podría ubicar con este método.
+   están en el tramo 022-028. Solo el **canal C** (trunking, transmitido por estaciones base fijas)
+   muestra una fuente localizada: probablemente una estación base en el norte de Itagüí, cerca de las
+   capturas 024-025. **Para A y B (enlace de subida celular, es decir, teléfonos) no existe una fuente
+   única, y para D no se puede señalar un lugar.** Tampoco se puede identificar la antena exacta sin el
+   registro de estaciones de la ANE.
    *(fuente: `artefactos/indicadores/potencia_canal_captura.csv`, `artefactos/indicadores/fuentes_estimadas.csv`)*
 
 4. **El muestreo cumple el criterio de Nyquist, exactamente en el límite** (f_s = 2·f_max = 20 MS/s).
